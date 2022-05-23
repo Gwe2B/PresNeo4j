@@ -6,11 +6,13 @@
  * @author Gwenaël
  * @version 3
  */
+
 use Laudis\Neo4j\Databags\Statement;
 use \Laudis\Neo4j\Client;
 use \Laudis\Neo4j\Authentication\Authenticate;
 
-class UserManager {
+class UserManager
+{
     //const REGEX_PASSWORD = "#^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[-+!*$@%_])([-+!*$@%_\w]{8,15})$#";
 
     private static $instance = null;
@@ -21,7 +23,8 @@ class UserManager {
      * @access private
      * @param Client $db The database connection
      */
-    private function __construct(Client $db) {
+    private function __construct(Client $db)
+    {
         $this->db = $db;
     }
 
@@ -30,8 +33,9 @@ class UserManager {
      * @param Client $db The database connection
      * @return UserManager The only possible class instance
      */
-    public static function getInstance(Client $db) : UserManager {
-        if(self::$instance == null) {
+    public static function getInstance(Client $db): UserManager
+    {
+        if (self::$instance == null) {
             self::$instance = new UserManager($db);
         }
 
@@ -44,23 +48,23 @@ class UserManager {
      * @return User If the user exist
      * @return null If there is no corresponding user in the database
      */
-    public function getById(int $id): ?User {
-        
+    public function getById(int $id): ?User
+    {
+
 
         $results = $this->db->runStatements([
-                    Statement::create("
+            Statement::create("
                     MATCH (u: user)
                      WHERE id(u) = $id
                      RETURN u, id(u)
                      ")
-]);
+        ]);
 
         $buffer = $results->first()->getResults()->first();
         $userData = $buffer->get("u")->getProperties()->toArray();
         $userData["id"] = $buffer->get("id(u)");
 
         return new User($userData);
-
     }
 
     /**
@@ -68,26 +72,26 @@ class UserManager {
      * @param User $usr The user to update into the database
      * @return void
      */
-    public function updateUser(User $usr) : void {
+    public function updateUser(User $usr): void
+    {
 
+        $userData = $usr->__serialize();
+        unset($userData['id']);
+        $statement = "";
 
+        foreach($userData as $key=>$value) {
+            $statement .= "u.$key = \"$value\",";
+        }
 
+        $statement = substr($statement, 0, -1);
 
-
-
-
-
-
-        // $query = $this->db->prepare(
-        //     "UPDATE user SET
-        //         nom=?, prenom=?, adresse=?, tel=?, mail=?, description=?
-        //     WHERE id=?"
-        // );
-        // $query->execute(array(
-        //     $usr->getNom(), $usr->getPrenom(), $usr->getAdresse(), $usr->getTel(),
-        //     $usr->getMail(), $usr->getDescription(), $usr->getId()
-        // ));
-        // $query->closeCursor();
+        $results = $this->db->runStatements([
+            Statement::create("
+            MATCH (u: user)
+            WHERE id(u) = ". $usr->getId() ."
+            SET $statement
+             ")
+        ]);
     }
 
     /**
@@ -95,7 +99,8 @@ class UserManager {
      * @param User $usr The user to add into the database
      * @return void
      */
-    public function createUser(User $usr) : void {
+    public function createUser(User $usr): void
+    {
         $query = $this->db->prepare(
             "INSERT INTO user(mail, nom, prenom) VALUE(?,?,?)"
         );
@@ -119,7 +124,8 @@ class UserManager {
      * @return null If there is no corresponding user in the database or the
      * password is incorrect
      */
-    public function connectUser(string $mail, string $password) : ?User {
+    public function connectUser(string $mail, string $password): ?User
+    {
         $result = null;
 
         $query = $this->db->prepare("SELECT * FROM user WHERE mail=?");
@@ -127,7 +133,7 @@ class UserManager {
         $datas = $query->fetch();
         $query->closeCursor();
 
-        if($datas != null && password_verify($password, $datas['mdp'])) {
+        if ($datas != null && password_verify($password, $datas['mdp'])) {
             $result = new User($datas);
         }
 
@@ -139,7 +145,8 @@ class UserManager {
      * @param string $mail The e-mail address to check
      * @return User|null Return true if th user exist, otherwise return false
      */
-    public function getByMail(string $mail) : ?User {
+    public function getByMail(string $mail): ?User
+    {
         $result = null;
 
         $query = $this->db->prepare("SELECT * FROM user WHERE mail=?");
@@ -147,19 +154,21 @@ class UserManager {
         $data = $query->fetch();
         $query->closeCursor();
 
-        if($data != null) {
+        if ($data != null) {
             $result = new User($data);
         }
 
         return $result;
     }
 
-    public function addLink(User $usr, string $token) : void {
+    public function addLink(User $usr, string $token): void
+    {
         $query = $this->db->prepare("UPDATE user SET hashRecup=?, validiteHash=DATE(NOW()) WHERE id=?");
         $query->execute(array($token, $usr->getId()));
     }
 
-    public function getByLink(string $token) : ?User {
+    public function getByLink(string $token): ?User
+    {
         $result = null;
 
         $query = $this->db->prepare("SELECT * FROM user WHERE hashRecup=? AND DATEDIFF(DATE(NOW()), validiteHash) < 1");
@@ -167,17 +176,18 @@ class UserManager {
         $data = $query->fetch();
         $query->closeCursor();
 
-        if($data != null) {
+        if ($data != null) {
             $result = new User($data);
         }
 
         return $result;
     }
 
-    public function changePassword(User $usr, string $newPassword) : bool {
+    public function changePassword(User $usr, string $newPassword): bool
+    {
         $result = false;
 
-        if(!empty($newPassword)) {
+        if (!empty($newPassword)) {
             $result = true;
             $newPassword = password_hash($newPassword, PASSWORD_DEFAULT);
 
@@ -189,7 +199,8 @@ class UserManager {
         return $result;
     }
 
-    public function isPasswordCorrect(User $usr, string $password) : bool {
+    public function isPasswordCorrect(User $usr, string $password): bool
+    {
         $result = false;
 
         $query = $this->db->prepare("SELECT mdp FROM user WHERE id=?");
@@ -197,7 +208,7 @@ class UserManager {
         $data = $query->fetch();
         $query->closeCursor();
 
-        if($data != null && password_verify($password, $data['mdp'])) {
+        if ($data != null && password_verify($password, $data['mdp'])) {
             $result = true;
         }
 
@@ -206,7 +217,8 @@ class UserManager {
 
     /* Recuperation des amis */
 
-    public function getFriendsByUserId(int $userId) : ?array {
+    public function getFriendsByUserId(int $userId): ?array
+    {
         $friends = null;
 
         $query = $this->db->prepare("SELECT CASE WHEN f.user_id=? THEN f.friend_id ELSE f.user_id END AS id
@@ -218,114 +230,110 @@ class UserManager {
         )
         GROUP by id");
 
-        $query->execute(array($userId,$userId,$userId));
+        $query->execute(array($userId, $userId, $userId));
         $data = $query->fetchAll();
         $query->closeCursor();
 
-        if($data != null) {
+        if ($data != null) {
 
-          $friends = array();
-          $friend = null;
+            $friends = array();
+            $friend = null;
 
-          $query1 = $this->db->prepare("SELECT * FROM user u WHERE u.id=?");
+            $query1 = $this->db->prepare("SELECT * FROM user u WHERE u.id=?");
 
-          foreach ($data as $row) {
+            foreach ($data as $row) {
 
-            $query1->execute(array(implode($row)));
-            $data1 = $query1->fetch();
+                $query1->execute(array(implode($row)));
+                $data1 = $query1->fetch();
 
-            if($data1 != null) {
-              $friend = new User($data1);
+                if ($data1 != null) {
+                    $friend = new User($data1);
+                }
+
+                array_push($friends, $friend);
             }
 
-            array_push($friends, $friend);
-          }
-
-          $query1->closeCursor();
+            $query1->closeCursor();
         }
 
         return $friends;
     }
-	
-	
-	public function areFriends(int $usr1Id, int $usr2Id) : bool {
-        
-		$areFriends = false;
+
+
+    public function areFriends(int $usr1Id, int $usr2Id): bool
+    {
+
+        $areFriends = false;
 
         $query = $this->db->prepare("SELECT * FROM friends where (user_id=? and friend_id=?) or (user_id=? and friend_id=?)");
-        $query->execute(array($usr1Id,$usr2Id,$usr2Id,$usr1Id));
+        $query->execute(array($usr1Id, $usr2Id, $usr2Id, $usr1Id));
         $data = $query->fetch();
         $query->closeCursor();
 
-        if($data != null) {
-			$areFriends=true;
-          }
+        if ($data != null) {
+            $areFriends = true;
+        }
 
         return $areFriends;
     }
-	
-	public function getNoneFriendsUsers(int $usrId) : ?array {
-        
-		$users = null;
+
+    public function getNoneFriendsUsers(int $usrId): ?array
+    {
+
+        $users = null;
 
         $query = $this->db->prepare("SELECT * FROM user where id!=?");
         $query->execute(array($usrId));
         $data = $query->fetchAll();
         $query->closeCursor();
 
-        if($data != null) {
-			
-			$users= array();
-			
-			foreach ($data as $row) {
+        if ($data != null) {
 
-              $newUser = new User($row);
-			  $areFriends = $this->areFriends($usrId, $newUser->getId());
-              
-			  if($areFriends==false) {
-				  array_push($users, $newUser);
-			  }
-    
+            $users = array();
+
+            foreach ($data as $row) {
+
+                $newUser = new User($row);
+                $areFriends = $this->areFriends($usrId, $newUser->getId());
+
+                if ($areFriends == false) {
+                    array_push($users, $newUser);
+                }
             }
         }
 
         return $users;
     }
 
-    public function addFriendship(int $usr1Id, int $usr2Id) : void {
-		
-		if($usr1Id != null and $usr2Id != null) {
-			
-			$areFriends = $this->areFriends($usr1Id, $usr2Id);
-			
-			if($areFriends==false) {
-				
-				 $query = $this->db->prepare("INSERT INTO friends VALUES (?,?)");
-                 $query->execute(array($usr1Id,$usr2Id)); 
-				 $query->closeCursor();
-				  
-			  }
-			
-		}
+    public function addFriendship(int $usr1Id, int $usr2Id): void
+    {
 
+        if ($usr1Id != null and $usr2Id != null) {
+
+            $areFriends = $this->areFriends($usr1Id, $usr2Id);
+
+            if ($areFriends == false) {
+
+                $query = $this->db->prepare("INSERT INTO friends VALUES (?,?)");
+                $query->execute(array($usr1Id, $usr2Id));
+                $query->closeCursor();
+            }
+        }
     }
 
-    public function removeFriendship(int $usr1Id, int $usr2Id) : void {
-		
-		if($usr1Id != null and $usr2Id != null) {
-			
-			$areFriends = $this->areFriends($usr1Id, $usr2Id);
-			
-			if($areFriends==true) {
-				
-				 $query = $this->db->prepare("DELETE FROM friends where (user_id=? and friend_id=?) or (user_id=? and friend_id=?)");
-                 $query->execute(array($usr1Id,$usr2Id,$usr2Id,$usr1Id));
-                 $query->closeCursor();
-				  
-			  }
-			
-		}
+    public function removeFriendship(int $usr1Id, int $usr2Id): void
+    {
 
-    }	
+        if ($usr1Id != null and $usr2Id != null) {
 
+            $areFriends = $this->areFriends($usr1Id, $usr2Id);
+
+            if ($areFriends == true) {
+
+                $query = $this->db->prepare("DELETE FROM friends where (user_id=? and friend_id=?) or (user_id=? and friend_id=?)");
+                $query->execute(array($usr1Id, $usr2Id, $usr2Id, $usr1Id));
+                $query->closeCursor();
+            }
+        }
+    }
 }
