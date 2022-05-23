@@ -17,26 +17,48 @@ define(
 require_once ROOT."vendor".DS."autoload.php";
 /* -------------------------------------------------------------------------- */
 
-/* -------------------------- Initialisation de PDO ------------------------- */
-$db = null;
-try {
-    // Connection à PDO
-    $db = new PDO(
-        "mysql:dbname=".$_SERVER['DB'].";host=".$_SERVER['DB_HOST'].";charset=UTF8",
-        $_SERVER['DB_USER'],
-        (isset($_SERVER['DB_PASS'])) ? $_SERVER['DB_PASS'] : null
-    );
 
-    // Set PDO variables
-    //TODO: Prod, change PDO::ERRMODE_EXCEPTION by PDO::ERRMODE_SILENT
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-}
-// Impossible de se connecter à la BDD
-catch (PDOException $e) {
-    echo "Database connection error!!<br>";
-    echo $e->getMessage();
-}
+
+
+
+use \Laudis\Neo4j\ClientBuilder;
+use \Laudis\Neo4j\Authentication\Authenticate;
+
+
+$auth = Authenticate::basic('neo4j', '1234');
+$db = ClientBuilder::create()
+    ->withDriver('bolt', 'bolt://neo4j:1234@localhost')
+    ->withDriver('neo4j', 'neo4j://localhost:7687', $auth)
+    ->withDriver('http', 'http://localhost:7474')
+    ->withDefaultDriver('neo4j')
+    ->build();
+
+
+
+
+
+
+
+/* -------------------------- Initialisation de PDO ------------------------- */
+// $db = null;
+// try {
+//     // Connection à PDO
+//     $db = new PDO(
+//         "mysql:dbname=".$_SERVER['DB'].";host=".$_SERVER['DB_HOST'].";charset=UTF8",
+//         $_SERVER['DB_USER'],
+//         (isset($_SERVER['DB_PASS'])) ? $_SERVER['DB_PASS'] : null
+//     );
+
+//     // Set PDO variables
+//     //TODO: Prod, change PDO::ERRMODE_EXCEPTION by PDO::ERRMODE_SILENT
+//     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+//     $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+// }
+// // Impossible de se connecter à la BDD
+// catch (PDOException $e) {
+//     echo "Database connection error!!<br>";
+//     echo $e->getMessage();
+// }
 /* -------------------------------------------------------------------------- */
 
 /* ------------------------- Initialisation de Twig ------------------------- */
@@ -60,7 +82,7 @@ require_once ROOT.'controllers'.DS.'User.php';
 require_once ROOT.'controllers'.DS.'UserManager.php';
 
 $mngr = UserManager::getInstance($db);
-$_SESSION['user'] = serialize($mngr->getById(5));
+$_SESSION['user'] = serialize($mngr->getById(4));
 
 if(isset($_SESSION['user'])&&!empty($_SESSION['user'])) {
     require_once ROOT."controllers".DS."User.php";

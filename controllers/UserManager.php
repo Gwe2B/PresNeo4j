@@ -6,6 +6,10 @@
  * @author Gwenaël
  * @version 3
  */
+use Laudis\Neo4j\Databags\Statement;
+use \Laudis\Neo4j\Client;
+use \Laudis\Neo4j\Authentication\Authenticate;
+
 class UserManager {
     //const REGEX_PASSWORD = "#^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[-+!*$@%_])([-+!*$@%_\w]{8,15})$#";
 
@@ -15,18 +19,18 @@ class UserManager {
     /**
      * Constructor - Singleton
      * @access private
-     * @param PDO $db The database connection
+     * @param Client $db The database connection
      */
-    private function __construct(PDO $db) {
+    private function __construct(Client $db) {
         $this->db = $db;
     }
 
     /**
      * Singleton pattern. The only mean to retrieve the only instance.
-     * @param PDO $db The database connection
+     * @param Client $db The database connection
      * @return UserManager The only possible class instance
      */
-    public static function getInstance(PDO $db) : UserManager {
+    public static function getInstance(Client $db) : UserManager {
         if(self::$instance == null) {
             self::$instance = new UserManager($db);
         }
@@ -40,19 +44,23 @@ class UserManager {
      * @return User If the user exist
      * @return null If there is no corresponding user in the database
      */
-    public function getById(int $id) : ?User {
-        $result = null;
+    public function getById(int $id): ?User {
+        
 
-        $query = $this->db->prepare("SELECT * FROM user WHERE id=?");
-        $query->execute(array($id));
-        $datas = $query->fetch();
-        $query->closeCursor();
+        $results = $this->db->runStatements([
+                    Statement::create("
+                    MATCH (u: user)
+                     WHERE id(u) = $id
+                     RETURN u, id(u)
+                     ")
+]);
 
-        if($datas != null) {
-            $result = new User($datas);
-        }
+        $buffer = $results->first()->getResults()->first();
+        $userData = $buffer->get("u")->getProperties()->toArray();
+        $userData["id"] = $buffer->get("id(u)");
 
-        return $result;
+        return new User($userData);
+
     }
 
     /**
@@ -61,16 +69,25 @@ class UserManager {
      * @return void
      */
     public function updateUser(User $usr) : void {
-        $query = $this->db->prepare(
-            "UPDATE user SET
-                nom=?, prenom=?, adresse=?, tel=?, mail=?, description=?
-            WHERE id=?"
-        );
-        $query->execute(array(
-            $usr->getNom(), $usr->getPrenom(), $usr->getAdresse(), $usr->getTel(),
-            $usr->getMail(), $usr->getDescription(), $usr->getId()
-        ));
-        $query->closeCursor();
+
+
+
+
+
+
+
+
+
+        // $query = $this->db->prepare(
+        //     "UPDATE user SET
+        //         nom=?, prenom=?, adresse=?, tel=?, mail=?, description=?
+        //     WHERE id=?"
+        // );
+        // $query->execute(array(
+        //     $usr->getNom(), $usr->getPrenom(), $usr->getAdresse(), $usr->getTel(),
+        //     $usr->getMail(), $usr->getDescription(), $usr->getId()
+        // ));
+        // $query->closeCursor();
     }
 
     /**
